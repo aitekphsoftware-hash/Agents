@@ -1,0 +1,7 @@
+{
+  "name": "Eburon Agent Studio",
+  "description": "An advanced Customer Service Representative (CSR) Studio powered by Gemini. Select pre-built agent templates, test them in a real-time conversation with the Gemini Live API, and experience next-generation AI-driven customer support.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
