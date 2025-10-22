@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Template } from '../../types';
 import { TEMPLATES } from '../../constants';
@@ -18,25 +17,20 @@ const KPICard: React.FC<{ title: string; value: string; gradient: string }> = ({
 const TemplateCard: React.FC<{ template: Template; onSelect: (template: Template) => void }> = ({ template, onSelect }) => (
   <div 
     onClick={() => onSelect(template)}
-    className="bg-[#1a1e25] border border-[var(--border)] rounded-xl p-4 cursor-pointer group hover:border-[var(--teal)]/50 transition-all duration-300 transform hover:-translate-y-1"
+    className="bg-gradient-to-br from-[#1e232e] to-[#161a22] border border-[var(--border)] rounded-2xl p-5 cursor-pointer group hover:border-teal-500/40 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-teal-900/20 relative overflow-hidden"
   >
-    <div className="text-3xl mb-2">{template.icon}</div>
-    <div className="font-semibold text-white">{template.name}</div>
-    <div className="text-xs text-[var(--muted)] mt-1">{template.description}</div>
-    <div className="mt-4 flex items-center justify-between">
+    <div className="flex flex-col h-full">
+      <div className="text-4xl mb-4">{template.icon}</div>
+      <div className="font-semibold text-white text-lg">{template.name}</div>
+      <div className="text-sm text-[var(--muted)] mt-1 flex-grow">{template.description}</div>
       <button 
-        onClick={(e) => { e.stopPropagation(); alert(`Previewing voice for ${template.name}`); }} 
-        className="text-xs bg-white/5 border border-white/10 px-3 py-1.5 rounded-md hover:bg-white/10 transition-colors"
+        onClick={(e) => { e.stopPropagation(); onSelect(template); }}
+        className="mt-6 w-full text-center text-sm font-semibold bg-white/5 border border-white/10 px-4 py-2.5 rounded-lg hover:bg-white/10 group-hover:bg-teal-500/10 group-hover:border-teal-500/30 group-hover:text-teal-300 transition-colors duration-300"
       >
-        Preview Voice
-      </button>
-      <button 
-        onClick={() => onSelect(template)}
-        className="text-xs bg-gradient-to-r from-[rgba(25,194,255,.16)] to-[rgba(246,196,83,.16)] text-white px-3 py-1.5 rounded-md border border-teal-500/30 group-hover:scale-105 transition-transform"
-      >
-        Try Now
+        Try Agent <i className="fas fa-arrow-right ml-2 opacity-70 group-hover:translate-x-1 transition-transform"></i>
       </button>
     </div>
+    <div className="absolute -top-10 -right-10 w-32 h-32 bg-teal-500/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
   </div>
 );
 

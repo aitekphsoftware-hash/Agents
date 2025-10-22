@@ -15,11 +15,9 @@ export class AudioPlayer {
     private nextStartTime = 0;
 
     constructor() {
-        // FIX: Cast window to any to access vendor-prefixed webkitAudioContext.
         this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
             sampleRate: OUTPUT_SAMPLE_RATE,
         });
-        // Start with a suspended context that resumes on the first audio chunk.
         this.audioContext.suspend();
     }
 
@@ -61,9 +59,42 @@ export class AudioPlayer {
     }
 
     /**
-     * Processes and plays the audio buffers in the queue.
+     * Processes and plays the audio buffers in the queue recursively.
      */
     private playQueue() {
         if (this.audioQueue.length === 0) {
             this.isPlaying = false;
             return;
+        }
+
+        this.isPlaying = true;
+        const buffer = this.audioQueue.shift()!;
+
+        // Ensure we don't schedule audio in the past.
+        const currentTime = this.audioContext.currentTime;
+        const scheduledTime = this.nextStartTime < currentTime ? currentTime : this.nextStartTime;
+
+        const source = this.audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.audioContext.destination);
+        source.start(scheduledTime);
+
+        // Update the start time for the next audio chunk.
+        this.nextStartTime = scheduledTime + buffer.duration;
+
+        source.onended = () => {
+            // When this chunk finishes, play the next one in the queue.
+            this.playQueue();
+        };
+    }
+
+    /**
+     * Stops all queued and playing audio immediately.
+     */
+    public stop() {
+        this.audioQueue = []; // Clear the queue
+        if (this.audioContext.state !== 'closed') {
+           this.audioContext.close();
+        }
+    }
+}
