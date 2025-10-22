@@ -13,6 +13,7 @@ export class AudioPlayer {
     private audioQueue: AudioBuffer[] = [];
     private isPlaying = false;
     private nextStartTime = 0;
+    private currentIVRSource: AudioBufferSourceNode | null = null;
 
     constructor() {
         this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
@@ -26,6 +27,7 @@ export class AudioPlayer {
      * @param base64Audio The base64 encoded string of raw PCM audio data.
      */
     public async addChunk(base64Audio: string) {
+        if (this.audioContext.state === 'closed') return;
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -40,29 +42,53 @@ export class AudioPlayer {
     /**
      * Plays an entire base64 audio file from start to finish. Useful for pre-generated audio like IVR.
      * @param base64Audio The base64 encoded string of the audio.
-     * @returns A promise that resolves when playback is finished.
+     * @param onEndCallback A callback function to execute when the audio finishes playing naturally.
      */
-    public playBase64(base64Audio: string): Promise<void> {
-        return new Promise(async (resolve) => {
-             if (this.audioContext.state === 'suspended') {
-                this.audioContext.resume();
-            }
-            const rawAudio = decode(base64Audio);
-            const audioBuffer = await decodeAudioData(rawAudio, this.audioContext, OUTPUT_SAMPLE_RATE, NUM_CHANNELS);
-            
-            const source = this.audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(this.audioContext.destination);
-            source.onended = () => resolve();
-            source.start();
-        });
+    public playBase64(base64Audio: string, onEndCallback: () => void) {
+        decodeAudioData(decode(base64Audio), this.audioContext, OUTPUT_SAMPLE_RATE, NUM_CHANNELS)
+            .then(audioBuffer => {
+                if (this.audioContext.state === 'closed') return;
+                
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                this.interruptIVR(); // Stop any currently playing IVR
+
+                const source = this.audioContext.createBufferSource();
+                this.currentIVRSource = source;
+                source.buffer = audioBuffer;
+                source.connect(this.audioContext.destination);
+                source.onended = () => {
+                    // Only trigger callback if this source is the one that ended, not an interrupted one.
+                    if (this.currentIVRSource === source) {
+                        this.currentIVRSource = null;
+                        onEndCallback();
+                    }
+                };
+                source.start();
+            })
+            .catch(err => {
+                console.error("Failed to decode and play base64 audio:", err);
+                onEndCallback(); // Proceed even if audio fails
+            });
+    }
+
+    /**
+     * Stops the currently playing IVR audio track immediately.
+     */
+    public interruptIVR() {
+        if (this.currentIVRSource) {
+            this.currentIVRSource.onended = null; // Prevent the 'onended' callback from firing
+            this.currentIVRSource.stop();
+            this.currentIVRSource = null;
+        }
     }
 
     /**
      * Processes and plays the audio buffers in the queue recursively.
      */
     private playQueue() {
-        if (this.audioQueue.length === 0) {
+        if (this.audioQueue.length === 0 || this.audioContext.state === 'closed') {
             this.isPlaying = false;
             return;
         }
@@ -89,12 +115,14 @@ export class AudioPlayer {
     }
 
     /**
-     * Stops all queued and playing audio immediately.
+     * Stops all queued and playing audio immediately and closes the audio context.
      */
     public stop() {
-        this.audioQueue = []; // Clear the queue
+        this.interruptIVR();
+        this.audioQueue = []; // Clear the agent audio queue
+        this.isPlaying = false;
         if (this.audioContext.state !== 'closed') {
-           this.audioContext.close();
+           this.audioContext.close().catch(console.error);
         }
     }
 }
